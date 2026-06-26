@@ -1,0 +1,7 @@
+node_modules/
+.npm-cache/
+uploads/
+temp_input_*
+temp_output_*
+.DS_Store
+*.log

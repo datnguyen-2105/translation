@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>XML Translator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="background-elements">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+  </div>
+
+  <main class="glass-panel container">
+    <header>
+      <h1>XML Translator</h1>
+      <p>Localize your SFCC library content easily.</p>
+    </header>
+
+    <form id="translateForm">
+      <div class="form-group">
+        <label>1. Upload XML File</label>
+        <div id="dropZone" class="drop-zone">
+          <span class="drop-icon">📄</span>
+          <p id="dropText">Drag & drop your XML file here, or click to select</p>
+          <input type="file" id="xmlFile" name="xmlFile" accept=".xml" required hidden>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>2. Select Target Languages</label>
+        <div class="checkbox-grid">
+          <label><input type="checkbox" name="targetLanguages" value="de-DE" checked> de-DE (German)</label>
+          <label><input type="checkbox" name="targetLanguages" value="fr-FR" checked> fr-FR (French)</label>
+          <label><input type="checkbox" name="targetLanguages" value="it-IT" checked> it-IT (Italian)</label>
+          <label><input type="checkbox" name="targetLanguages" value="nl-NL" checked> nl-NL (Dutch)</label>
+          <label><input type="checkbox" name="targetLanguages" value="es" checked> es (Spanish)</label>
+          <label><input type="checkbox" name="targetLanguages" value="id-ID" checked> id-ID (Indonesian)</label>
+          <label><input type="checkbox" name="targetLanguages" value="ja-JP" checked> ja-JP (Japanese)</label>
+          <label><input type="checkbox" name="targetLanguages" value="ko-KR" checked> ko-KR (Korean)</label>
+          <label><input type="checkbox" name="targetLanguages" value="pt-BR" checked> pt-BR (Portuguese)</label>
+          <label><input type="checkbox" name="targetLanguages" value="th-TH" checked> th-TH (Thai)</label>
+          <label><input type="checkbox" name="targetLanguages" value="vi-VN" checked> vi-VN (Vietnamese)</label>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="protectedTerms">3. Protected Terms (comma-separated)</label>
+        <textarea id="protectedTerms" name="protectedTerms" rows="3" class="glass-input">Computex,Freeform,Cooler Master,Thermal Mastery,One Cooler Master, Thermal Excellence</textarea>
+      </div>
+
+      <button type="submit" id="translateBtn" class="primary-btn">
+        <span class="btn-text">Translate XML</span>
+        <span class="spinner hidden"></span>
+      </button>
+    </form>
+
+    <div id="resultArea" class="result-area hidden">
+      <h3>Translation Complete!</h3>
+      <p>Your cloned XML file is ready.</p>
+      <a id="downloadLink" class="secondary-btn" href="#" download="translated_content.xml">Download XML</a>
+      <button id="resetBtn" class="text-btn">Translate Another File</button>
+    </div>
+    
+    <div id="errorArea" class="error-area hidden">
+      <p id="errorMsg"></p>
+    </div>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

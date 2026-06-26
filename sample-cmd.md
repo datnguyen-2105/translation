@@ -1,0 +1,1 @@
+node .\extract-content-xdefault.js ./featuredcampaigns-megamenu.xml ./featuredcampaigns-megamenu.xdefault-cloned.xml
