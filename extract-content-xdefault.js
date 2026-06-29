@@ -55,6 +55,7 @@ const SKIP_TYPES = new Set(
     'component.commerce_layouts.cmblockcolumnslider'
   ].map((type) => normalizeType(type))
 );
+const CMREPEATER_TYPE = normalizeType('component.commerce_assets.cmRepeater');
 
 function normalizeType(typeValue) {
   return String(typeValue || '').trim().toLowerCase();
@@ -413,6 +414,34 @@ async function translateFieldsRecursively(sourceNode, targetNode, targetLang, ca
   }
 }
 
+async function translateSpecsArray(jsonArrayString, targetLang, cache) {
+  if (typeof jsonArrayString !== 'string' || !jsonArrayString.trim().startsWith('[')) {
+    return jsonArrayString;
+  }
+
+  let specsArray;
+  try {
+    specsArray = JSON.parse(jsonArrayString);
+  } catch (e) {
+    return jsonArrayString;
+  }
+
+  if (!Array.isArray(specsArray)) {
+    return jsonArrayString;
+  }
+
+  for (const spec of specsArray) {
+    if (spec.displayName && typeof spec.displayName === 'string' && spec.displayName.trim() !== '') {
+      spec.displayName = await translateText(spec.displayName, targetLang, cache);
+    }
+    if (spec.value && typeof spec.value === 'string' && spec.value.trim() !== '') {
+      spec.value = await translateText(spec.value, targetLang, cache);
+    }
+  }
+
+  return JSON.stringify(specsArray);
+}
+
 function formatDataTag(lang, obj) {
   const jsonText = JSON.stringify(obj, null, 2);
   const xmlSafeJsonText = encodeHtmlEntities(jsonText);
@@ -492,6 +521,12 @@ async function processTranslation(inputPath = DEFAULT_INPUT_PATH, outputPath = D
       const translateCode = LANG_TO_TRANSLATE_CODE[lang] || lang;
       const langObj = deepClone(xDefaultObj);
       await translateFieldsRecursively(xDefaultObj, langObj, translateCode, translationCache);
+
+      // Handle cmRepeater specs: translate the JSON-stringified displayName/value pairs
+      if (normalizeType(typeValue) === CMREPEATER_TYPE && langObj.specs && typeof langObj.specs.value === 'string') {
+        langObj.specs.value = await translateSpecsArray(langObj.specs.value, translateCode, translationCache);
+      }
+
       dataTags.push(formatDataTag(lang, langObj));
     }
 
