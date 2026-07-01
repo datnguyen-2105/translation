@@ -31,6 +31,10 @@ const TRANSLATABLE_FIELDS = new Set([
   'primaryButtonTitle'
 ]);
 const LANG_TO_TRANSLATE_CODE = {
+  'de-DE': 'de',
+  'fr-FR': 'fr',
+  'it-IT': 'it',
+  'nl-NL': 'nl',
   es: 'es',
   'id-ID': 'id',
   'ja-JP': 'ja',
@@ -41,6 +45,32 @@ const LANG_TO_TRANSLATE_CODE = {
   'zh-TW': 'zh-TW'
 };
 let TRANSLATION_MISSES = 0;
+
+// Concurrency limiter for Google Translate API calls
+const MAX_CONCURRENT_API_CALLS = 5;
+class Semaphore {
+  constructor(max) {
+    this.max = max;
+    this.current = 0;
+    this.queue = [];
+  }
+  async acquire() {
+    if (this.current < this.max) {
+      this.current++;
+      return;
+    }
+    await new Promise(resolve => this.queue.push(resolve));
+  }
+  release() {
+    this.current--;
+    if (this.queue.length > 0) {
+      this.current++;
+      const next = this.queue.shift();
+      next();
+    }
+  }
+}
+const API_SEMAPHORE = new Semaphore(MAX_CONCURRENT_API_CALLS);
 const SKIP_TYPES = new Set(
   [
     'component.commerce_layouts.cmblock2col',
@@ -301,7 +331,13 @@ async function translateText(text, targetLang, cache) {
 
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     try {
-      const response = await httpGetJson(endpoint);
+      await API_SEMAPHORE.acquire();
+      let response;
+      try {
+        response = await httpGetJson(endpoint);
+      } finally {
+        API_SEMAPHORE.release();
+      }
       translated = Array.isArray(response?.[0])
         ? response[0].map((part) => (Array.isArray(part) ? part[0] : '')).join('')
         : text;
@@ -310,6 +346,7 @@ async function translateText(text, targetLang, cache) {
       break;
     } catch (error) {
       if (attempt === 3) {
+        console.warn(`[Translation Failed] targetLang=${targetLang}, text="${text.substring(0, 40)}...":`, error.message);
         if (text.length > 120) {
           const parts = text.split(/([.!?。！？]\s+)/).filter((part) => part !== '');
           if (parts.length > 1) {
@@ -326,7 +363,13 @@ async function translateText(text, targetLang, cache) {
                 targetLang
               )}&dt=t&q=${encodeURIComponent(protectedPart.text)}`;
               try {
-                const partResponse = await httpGetJson(partEndpoint);
+                await API_SEMAPHORE.acquire();
+                let partResponse;
+                try {
+                  partResponse = await httpGetJson(partEndpoint);
+                } finally {
+                  API_SEMAPHORE.release();
+                }
                 const translatedPart = Array.isArray(partResponse?.[0])
                   ? partResponse[0]
                       .map((piece) => (Array.isArray(piece) ? piece[0] : ''))
@@ -335,6 +378,7 @@ async function translateText(text, targetLang, cache) {
                 const restoredPart = restoreTerms(translatedPart || part, protectedPart.tokenMap);
                 translatedParts.push(preserveEmailsFromSource(part, restoredPart));
               } catch (partError) {
+                console.warn(`[Sub-Translation Failed] targetLang=${targetLang}:`, partError.message);
                 translatedParts.push(part);
               }
             }
@@ -448,15 +492,28 @@ function formatDataTag(lang, obj) {
   return `<data xml:lang="${lang}">${xmlSafeJsonText}</data>`;
 }
 
+function initProtectedTerms(protectedTermsStr, inputPath = '') {
+  if (protectedTermsStr) {
+    PROTECTED_TERMS = protectedTermsStr.split(',').map((t) => t.trim()).filter(Boolean);
+  } else {
+    PROTECTED_TERMS = (process.env.PROTECTED_TERMS || 'Computex,Freeform,Cooler Master,Thermal Mastery,One Cooler Master,Thermal Excellence')
+      .split(',')
+      .map((term) => term.trim())
+      .filter(Boolean);
+  }
+  if (inputPath && inputPath.indexOf('cookie-policy') >= 0) {
+    const nontranslate = ['guest', 'loglevel', 'CookieConsent', 'SESS', 'CSS'];
+    nontranslate.forEach((term) => {
+      if (!PROTECTED_TERMS.includes(term)) {
+        PROTECTED_TERMS.push(term);
+      }
+    });
+  }
+}
+
 async function processTranslation(inputPath = DEFAULT_INPUT_PATH, outputPath = DEFAULT_OUTPUT_PATH, options = {}) {
   const cloneLangs = options.cloneLangs || DEFAULT_CLONE_LANGS;
-  if (options.protectedTerms) {
-    PROTECTED_TERMS = options.protectedTerms.split(',').map((t) => t.trim()).filter(Boolean);
-  }
-  if (inputPath.indexOf('cookie-policy') >= 0) {
-    var nontranslate = ['guest', 'loglevel', 'CookieConsent', 'SESS', 'CSS'];
-    PROTECTED_TERMS.push(...nontranslate);
-  }
+  initProtectedTerms(options.protectedTerms, inputPath);
 
   if (!fs.existsSync(inputPath)) {
     throw new Error(`Input file not found: ${inputPath}`);
@@ -517,7 +574,9 @@ async function processTranslation(inputPath = DEFAULT_INPUT_PATH, outputPath = D
     }
 
     const dataTags = [xDefaultDataTag];
-    for (const lang of cloneLangs) {
+
+    // Translate all languages in parallel (semaphore controls API concurrency)
+    const langResults = await Promise.all(cloneLangs.map(async (lang) => {
       const translateCode = LANG_TO_TRANSLATE_CODE[lang] || lang;
       const langObj = deepClone(xDefaultObj);
       await translateFieldsRecursively(xDefaultObj, langObj, translateCode, translationCache);
@@ -527,8 +586,10 @@ async function processTranslation(inputPath = DEFAULT_INPUT_PATH, outputPath = D
         langObj.specs.value = await translateSpecsArray(langObj.specs.value, translateCode, translationCache);
       }
 
-      dataTags.push(formatDataTag(lang, langObj));
-    }
+      return formatDataTag(lang, langObj);
+    }));
+
+    dataTags.push(...langResults);
 
     const contentOut = [
       `  ${openTag}`,
@@ -567,5 +628,14 @@ if (require.main === module) {
     process.exit(1);
   });
 } else {
-  module.exports = { processTranslation, DEFAULT_CLONE_LANGS };
+  module.exports = {
+    processTranslation,
+    DEFAULT_CLONE_LANGS,
+    LANG_TO_TRANSLATE_CODE,
+    translateText,
+    translateHtmlContent,
+    encodeHtmlEntities,
+    initProtectedTerms
+  };
 }
+

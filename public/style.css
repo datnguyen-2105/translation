@@ -104,6 +104,75 @@ header p {
   font-size: 0.95rem;
 }
 
+.format-selector {
+  display: flex;
+  gap: 1rem;
+  width: 100%;
+}
+
+.format-option {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem 1rem;
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.format-option::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(135deg, rgba(96, 165, 250, 0.1) 0%, rgba(167, 139, 250, 0.1) 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 1;
+}
+
+.format-option:hover {
+  border-color: rgba(96, 165, 250, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.format-option.active {
+  border-color: var(--primary);
+  background: rgba(79, 70, 229, 0.15);
+  box-shadow: 0 0 15px rgba(79, 70, 229, 0.3);
+}
+
+.format-option.active::before {
+  opacity: 1;
+}
+
+.format-icon {
+  font-size: 1.75rem;
+  margin-bottom: 0.5rem;
+  position: relative;
+  z-index: 2;
+}
+
+.format-text {
+  font-weight: 500;
+  font-size: 0.95rem;
+  position: relative;
+  z-index: 2;
+  color: var(--text-main);
+}
+
+.format-option.active .format-text {
+  color: #fff;
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
+}
+
 .drop-zone {
   border: 2px dashed var(--glass-border);
   border-radius: 12px;
@@ -128,6 +197,95 @@ header p {
 .drop-zone.has-file {
   border-color: var(--success);
   background: rgba(16, 185, 129, 0.1);
+}
+
+/* File List */
+.file-list {
+  margin-top: 0.75rem;
+  max-height: 200px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.file-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.file-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.file-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0.85rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  animation: fileSlideIn 0.3s ease forwards;
+}
+
+@keyframes fileSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.file-item:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.file-item-icon {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.file-item-name {
+  flex: 1;
+  font-size: 0.85rem;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-item-size {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.file-item-remove {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 0.15rem 0.35rem;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.file-item-remove:hover {
+  color: var(--danger);
+  background: rgba(239, 68, 68, 0.15);
 }
 
 .checkbox-grid {

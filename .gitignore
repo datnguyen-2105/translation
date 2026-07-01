@@ -5,3 +5,6 @@ temp_input_*
 temp_output_*
 .DS_Store
 *.log
+original-xml/
+translated-xml/
+product-section/

@@ -2,6 +2,9 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { processTranslation, DEFAULT_CLONE_LANGS } = require('./extract-content-xdefault.js');
+const { processProductTranslation } = require('./extract-product-xdefault.js');
+const { mergeProductXml, mergeLibraryXml } = require('./merge-xml.js');
+
 
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, 'public');
@@ -49,10 +52,7 @@ const server = http.createServer((req, res) => {
     req.on('end', async () => {
       try {
         const body = JSON.parse(bodyStr);
-        if (!body.xmlContent) {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
-          return res.end(JSON.stringify({ error: 'No XML content provided.' }));
-        }
+        const xmlFormat = body.xmlFormat || 'page-designer';
 
         const cloneLangs = (body.targetLanguages && body.targetLanguages.length > 0) 
           ? body.targetLanguages 
@@ -63,26 +63,52 @@ const server = http.createServer((req, res) => {
           protectedTerms: body.protectedTerms || ''
         };
 
-        // Create temporary files for the script to use
-        const tempId = Date.now();
-        const inputPath = path.join(__dirname, `temp_input_${tempId}.xml`);
-        const outputPath = path.join(__dirname, `temp_output_${tempId}.xml`);
+        // Normalize input: support both single xmlContent and multi xmlContents
+        let files = [];
+        if (body.xmlContents && Array.isArray(body.xmlContents) && body.xmlContents.length > 0) {
+          files = body.xmlContents; // [{ name, content }]
+        } else if (body.xmlContent) {
+          files = [{ name: 'file.xml', content: body.xmlContent }];
+        } else {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ error: 'No XML content provided.' }));
+        }
 
-        fs.writeFileSync(inputPath, body.xmlContent, 'utf8');
+        const translateFn = xmlFormat === 'product-section' ? processProductTranslation : processTranslation;
 
-        // Run translation
-        await processTranslation(inputPath, outputPath, options);
+        // Translate all files in parallel (semaphore controls API concurrency)
+        const translatedXmls = await Promise.all(files.map(async (file, i) => {
+          const tempId = `${Date.now()}_${i}_${Math.random().toString(36).slice(2, 8)}`;
+          const inputPath = path.join(__dirname, `temp_input_${tempId}.xml`);
+          const outputPath = path.join(__dirname, `temp_output_${tempId}.xml`);
 
-        // Read the result
-        const translatedContent = fs.readFileSync(outputPath, 'utf8');
+          try {
+            fs.writeFileSync(inputPath, file.content, 'utf8');
+            await translateFn(inputPath, outputPath, options);
+            return fs.readFileSync(outputPath, 'utf8');
+          } finally {
+            // Cleanup temp files
+            if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
+            if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
+          }
+        }));
 
-        // Cleanup
-        if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
-        if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
+        // Merge if multiple files, otherwise return single result
+        let finalXml;
+        if (translatedXmls.length > 1) {
+          finalXml = xmlFormat === 'product-section'
+            ? mergeProductXml(translatedXmls)
+            : mergeLibraryXml(translatedXmls);
+        } else {
+          finalXml = translatedXmls[0];
+        }
 
         // Send back
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ xmlContent: translatedContent }));
+        res.end(JSON.stringify({ 
+          xmlContent: finalXml,
+          fileCount: files.length
+        }));
 
       } catch (error) {
         console.error('Translation error:', error);

@@ -23,16 +23,33 @@
 
     <form id="translateForm">
       <div class="form-group">
-        <label>1. Upload XML File</label>
-        <div id="dropZone" class="drop-zone">
-          <span class="drop-icon">📄</span>
-          <p id="dropText">Drag & drop your XML file here, or click to select</p>
-          <input type="file" id="xmlFile" name="xmlFile" accept=".xml" required hidden>
+        <label>1. Select XML Format</label>
+        <div class="format-selector">
+          <label class="format-option active" id="label-pd">
+            <input type="radio" name="xmlFormat" value="page-designer" checked hidden>
+            <span class="format-icon">🖥️</span>
+            <span class="format-text">Page Designer Section</span>
+          </label>
+          <label class="format-option" id="label-product">
+            <input type="radio" name="xmlFormat" value="product-section" hidden>
+            <span class="format-icon">📦</span>
+            <span class="format-text">Product Section</span>
+          </label>
         </div>
       </div>
 
       <div class="form-group">
-        <label>2. Select Target Languages</label>
+        <label>2. Upload XML Files</label>
+        <div id="dropZone" class="drop-zone">
+          <span class="drop-icon">📄</span>
+          <p id="dropText">Drag & drop your XML files here, or click to select</p>
+          <input type="file" id="xmlFile" name="xmlFile" accept=".xml" multiple hidden>
+        </div>
+        <div id="fileList" class="file-list hidden"></div>
+      </div>
+
+      <div class="form-group">
+        <label>3. Select Target Languages</label>
         <div class="checkbox-grid">
           <label><input type="checkbox" name="targetLanguages" value="de-DE" checked> de-DE (German)</label>
           <label><input type="checkbox" name="targetLanguages" value="fr-FR" checked> fr-FR (French)</label>
@@ -49,7 +66,8 @@
       </div>
 
       <div class="form-group">
-        <label for="protectedTerms">3. Protected Terms (comma-separated)</label>
+        <label for="protectedTerms">4. Protected Terms (comma-separated)</label>
+
         <textarea id="protectedTerms" name="protectedTerms" rows="3" class="glass-input">Computex,Freeform,Cooler Master,Thermal Mastery,One Cooler Master, Thermal Excellence</textarea>
       </div>
 
@@ -61,7 +79,7 @@
 
     <div id="resultArea" class="result-area hidden">
       <h3>Translation Complete!</h3>
-      <p>Your cloned XML file is ready.</p>
+      <p id="resultMsg">Your translated XML file is ready.</p>
       <a id="downloadLink" class="secondary-btn" href="#" download="translated_content.xml">Download XML</a>
       <button id="resetBtn" class="text-btn">Translate Another File</button>
     </div>
